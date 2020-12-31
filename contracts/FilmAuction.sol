@@ -18,6 +18,12 @@ contract FilmAuction is Token {
     bool finished;
   }
 
+  event MaxGasPriceChanged(uint newMaxGasPrice);
+  event MaxContributionChanged(uint newMaxContribution);
+  event NewRoundCreated(uint roundIndex, uint startTime);
+  event RoundFinished(uint roundIndex, bool success);
+  event RoundContribution(uint roundIndex, address contributor, uint amount);
+
   AuctionRound[] rounds;
   mapping (uint => mapping (address => uint)) contributionsByRound;
   mapping (address => uint) settledIndexes;
@@ -71,11 +77,13 @@ contract FilmAuction is Token {
   function setMaxGasPrice(uint price) public {
     require(creators[msg.sender]);
     maxGasPrice = price;
+    emit MaxGasPriceChanged(maxGasPrice);
   }
 
   function setMaxContribution(uint amount) public {
     require(creators[msg.sender]);
     maxContribution = amount;
+    emit MaxContributionChanged(maxContribution);
   }
 
   function latestRound() public view returns (AuctionRound memory) {
@@ -100,6 +108,7 @@ contract FilmAuction is Token {
       success: false,
       finished: false
     }));
+    emit NewRoundCreated(rounds.length - 1, startTime);
   }
 
   function settleTokens() public {
@@ -145,6 +154,7 @@ contract FilmAuction is Token {
     uint amount = min(min(msg.value, round.maxWei - round.actualWei), maxContrib);
     contributionsByRound[index][msg.sender] += amount;
     round.actualWei += amount;
+    emit RoundContribution(index, msg.sender, amount);
     if (msg.value > amount) {
       // refund excess
       msg.sender.transfer(msg.value - amount);
@@ -157,7 +167,10 @@ contract FilmAuction is Token {
     require(block.timestamp > round.endTime || round.actualWei == round.maxWei, "Round has not finished");
     require(!round.finished, "Round already settled");
     round.success = round.actualWei >= round.minWei;
-    if (!round.success) return; // ether can be reclaimed
+    if (!round.success) {
+      emit RoundFinished(index, round.success);
+      return; // ether can be reclaimed
+    }
     totalBalance += round.actualWei;
     // mint tokens
     uint ownerIncrease = round.actualWei / OWNER_FACTOR;
@@ -165,6 +178,7 @@ contract FilmAuction is Token {
     balances[address(0)] += round.actualWei;
     balances[originalCreator] += ownerIncrease;
     emit Transfer(address(0), originalCreator, ownerIncrease);
+    emit RoundFinished(index, round.success);
   }
 
   function max(uint a, uint b) internal pure returns (uint) {
