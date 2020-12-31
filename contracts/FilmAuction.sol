@@ -25,11 +25,11 @@ contract FilmAuction is Token {
 
   uint public totalBalance = 0;
 
-  uint constant MIN_AUCTION_LENGTH = 3 days;
-  uint constant MIN_AUCTION_LEAD_TIME = 3 days;
+  uint public constant MIN_AUCTION_LENGTH = 3 days;
+  uint public constant MIN_AUCTION_LEAD_TIME = 3 days;
 
   uint public creatorCount;
-  uint public maxGasPrice = 200 gwei;
+  uint public maxGasPrice = 200 * 10**9;
   uint public maxContribution = 1 ether;
 
   // 5% of all created tokens go to original creator
@@ -79,6 +79,7 @@ contract FilmAuction is Token {
 
   function createAuctionRound(uint minWei, uint maxWei, uint startTime, uint endTime) public {
     require(creators[msg.sender], "You must be a creator");
+    require(startTime > rounds[rounds.length - 1].endTime, "Auction overlap not allowed");
     require(startTime < endTime, "Invalid timing");
     require(endTime - startTime > MIN_AUCTION_LENGTH, "Invalid auction length");
     require(startTime > block.timestamp, "Start time is in past");
