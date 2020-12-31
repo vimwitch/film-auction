@@ -14,5 +14,5 @@ docker run \
   ethereum/solc:stable \
   --optimize --optimize-runs=99999 \
   --abi --bin -o /src/build \
-  contracts/Auction.sol \
+  contracts/FilmAuction.sol \
   --base-path /src --allow-paths /src/node_modules,/src/contracts

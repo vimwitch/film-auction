@@ -5,14 +5,17 @@
   "main": "index.js",
   "scripts": {
     "deploy": "node scripts/deploy",
-    "compile": "sh scripts/compile.sh",
+    "compile": "truffle compile",
     "genkeys": "node scripts/generate_keys",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "truffle test"
   },
   "author": "Chance Hudson",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "ava": "^3.14.0",
+    "ganache-core": "^2.13.1",
+    "solidity-coverage": "^0.7.13",
+    "truffle": "^5.1.59",
     "web3": "^1.3.1"
   }
 }
