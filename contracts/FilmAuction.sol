@@ -33,7 +33,7 @@ contract FilmAuction is Token {
   uint public maxContribution = 1 ether;
 
   // 5% of all created tokens go to original creator
-  uint constant OWNER_FACTOR = 20;
+  uint public constant OWNER_FACTOR = 20;
   address immutable originalCreator;
 
   constructor(address payable _originalCreator) {
@@ -80,10 +80,10 @@ contract FilmAuction is Token {
   function createAuctionRound(uint minWei, uint maxWei, uint startTime, uint endTime) public {
     require(creators[msg.sender], "You must be a creator");
     require(startTime > rounds[rounds.length - 1].endTime, "Auction overlap not allowed");
-    require(startTime < endTime, "Invalid timing");
-    require(endTime - startTime > MIN_AUCTION_LENGTH, "Invalid auction length");
+    require(endTime > startTime, "Invalid timing");
+    require(endTime - startTime >= MIN_AUCTION_LENGTH, "Invalid auction length");
     require(startTime > block.timestamp, "Start time is in past");
-    require(startTime - block.timestamp > MIN_AUCTION_LEAD_TIME, "Too close to start time");
+    require(startTime - block.timestamp >= MIN_AUCTION_LEAD_TIME, "Too close to start time");
     require(maxWei > minWei, "Invalid target amounts");
     require(minWei > OWNER_FACTOR, "Invalid min wei");
     rounds.push(AuctionRound({
