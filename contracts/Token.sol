@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
 
 import "./IERC20.sol";
@@ -8,15 +9,15 @@ contract Token is IERC20 {
   mapping (address => uint) balances;
   mapping (address => mapping (address => uint)) approvals;
 
-  function name() public override view returns (string memory) {
-    return "health"
+  function name() public override pure returns (string memory) {
+    return "health";
   }
 
-  function symbol() public override view returns (string memory) {
-    return 'HLT'
+  function symbol() public override pure returns (string memory) {
+    return 'HLT';
   }
 
-  function decimals() public override view returns (uint8) {
+  function decimals() public override pure returns (uint8) {
     return 16;
   }
 

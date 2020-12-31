@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
 
 // Vote on the publish or sale of the art
@@ -9,7 +10,7 @@ contract FilmAuction is Token {
   struct AuctionRound {
     uint minWei;
     uint maxWei;
-    uint actualWei:
+    uint actualWei;
     uint startTime;
     uint endTime;
     bool success;
@@ -33,7 +34,7 @@ contract FilmAuction is Token {
 
   // 5% of all created tokens go to original creator
   uint constant OWNER_FACTOR = 20;
-  uint immutable originalCreator;
+  address immutable originalCreator;
 
   constructor(address payable _originalCreator) {
     originalCreator = _originalCreator;
@@ -54,29 +55,29 @@ contract FilmAuction is Token {
     return creatorCount == 0;
   }
 
-  function addCreator(address newCreator) {
+  function addCreator(address newCreator) public {
     require(creators[msg.sender]);
-    creators[msg.sender] = true;
+    creators[newCreator] = true;
     creatorCount++;
   }
 
-  function removeCreator(address oldCreator) {
+  function removeCreator(address oldCreator) public {
     require(creators[msg.sender]);
-    creators[msg.sender] = false;
+    creators[oldCreator] = false;
     creatorCount--;
   }
 
-  function setMaxGasPrice(uint price) {
+  function setMaxGasPrice(uint price) public {
     require(creators[msg.sender]);
     maxGasPrice = price;
   }
 
-  function setMaxContribution(uint amount) {
+  function setMaxContribution(uint amount) public {
     require(creators[msg.sender]);
     maxContribution = amount;
   }
 
-  function createAuctionRound(uint minWei, uint maxWei, uint startTime, uint endTime) {
+  function createAuctionRound(uint minWei, uint maxWei, uint startTime, uint endTime) public {
     require(creators[msg.sender], "You must be a creator");
     require(startTime < endTime, "Invalid timing");
     require(endTime - startTime > MIN_AUCTION_LENGTH, "Invalid auction length");
@@ -95,7 +96,7 @@ contract FilmAuction is Token {
     }));
   }
 
-  function settleTokens() {
+  function settleTokens() public {
     uint lastSettled = settledIndexes[msg.sender];
     uint refundAmount = 0;
     uint tokenAmount = 0;
@@ -116,16 +117,16 @@ contract FilmAuction is Token {
     }
     settledIndexes[msg.sender] = latestSettledIndex;
     if (tokenAmount != 0) {
-      balances[msg.sender] += amount;
-      balances[address(0)] -= amount;
-      emit Transfer(address(0), msg.sender, amount);
+      balances[msg.sender] += tokenAmount;
+      balances[address(0)] -= tokenAmount;
+      emit Transfer(address(0), msg.sender, tokenAmount);
     }
     if (refundAmount != 0) {
       msg.sender.transfer(refundAmount);
     }
   }
 
-  function contribute(uint index) {
+  function contribute(uint index) public payable {
     require(tx.gasprice <= maxGasPrice, "Gas price too high");
     require(index < rounds.length, "Invalid round index");
     AuctionRound storage round = rounds[index];
@@ -142,7 +143,7 @@ contract FilmAuction is Token {
     }
   }
 
-  function finishRound(uint index) {
+  function finishRound(uint index) public {
     require(index < rounds.length, "Invalid round index");
     AuctionRound storage round = rounds[index];
     require(block.timestamp > round.endTime || round.actualWei == round.maxWei, "Round has not finished");
