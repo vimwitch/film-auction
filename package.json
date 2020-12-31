@@ -8,15 +8,12 @@
     "compile": "truffle compile",
     "genkeys": "node scripts/generate_keys",
     "testchain": "sh scripts/test_chain.sh",
-    "coverage": "npm run testchain -- --stop && truffle run coverage --network ganache",
-    "test": "npm run testchain && truffle test --network ganache"
+    "coverage": "truffle run coverage",
+    "test": "truffle test"
   },
   "author": "Chance Hudson",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "ava": "^3.14.0",
-    "ganache-cli": "^6.12.1",
-    "ganache-core": "^2.13.1",
     "ganache-time-traveler": "^1.0.15",
     "solidity-coverage": "^0.7.13",
     "truffle": "^5.1.59",
