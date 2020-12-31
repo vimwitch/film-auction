@@ -4,9 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "deploy": "node scripts/deploy",
     "compile": "sh scripts/compile.sh",
+    "genkeys": "node scripts/generate_keys",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Chance Hudson",
-  "license": "GPL-3.0-or-later"
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "ava": "^3.14.0",
+    "web3": "^1.3.1"
+  }
 }
