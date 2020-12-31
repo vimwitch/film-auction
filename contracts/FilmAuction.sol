@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
+pragma abicoder v2;
 
 // Vote on the publish or sale of the art
 // Anything not voted on is an illegal distribution of the art
@@ -77,6 +78,10 @@ contract FilmAuction is Token {
     maxContribution = amount;
   }
 
+  function latestRound() public view returns (AuctionRound memory) {
+    return rounds[rounds.length - 1];
+  }
+
   function createAuctionRound(uint minWei, uint maxWei, uint startTime, uint endTime) public {
     require(creators[msg.sender], "You must be a creator");
     require(startTime > rounds[rounds.length - 1].endTime, "Auction overlap not allowed");
@@ -135,7 +140,9 @@ contract FilmAuction is Token {
     require(block.timestamp < round.endTime, "Round has ended");
     require(round.actualWei < round.maxWei, "Round max reached");
     require(msg.value > 0, "Invalid contribution value");
-    uint amount = min(max(msg.value, round.maxWei - round.actualWei), maxContribution);
+    require(contributionsByRound[index][msg.sender] < maxContribution, "Max contribution reached");
+    uint maxContrib = maxContribution - contributionsByRound[index][msg.sender];
+    uint amount = min(min(msg.value, round.maxWei - round.actualWei), maxContrib);
     contributionsByRound[index][msg.sender] += amount;
     round.actualWei += amount;
     if (msg.value > amount) {
