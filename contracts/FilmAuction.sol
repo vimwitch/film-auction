@@ -5,15 +5,15 @@ pragma abicoder v2;
 // Vote on the publish or sale of the art
 // Anything not voted on is an illegal distribution of the art
 
-import "./Token.sol";
+import "./DividendToken.sol";
 
-contract FilmAuction is Token {
+contract FilmAuction is DividendToken {
   struct AuctionRound {
     uint minWei;
     uint maxWei;
     uint actualWei;
-    uint startTime;
-    uint endTime;
+    uint128 startTime;
+    uint128 endTime;
     bool success;
     bool finished;
   }
@@ -32,16 +32,16 @@ contract FilmAuction is Token {
 
   uint public totalBalance = 0;
 
-  uint public constant MIN_AUCTION_LENGTH = 3 days;
-  uint public constant MIN_AUCTION_LEAD_TIME = 3 days;
+  uint56 public constant MIN_AUCTION_LENGTH = 3 days;
+  uint56 public constant MIN_AUCTION_LEAD_TIME = 3 days;
 
-  uint public creatorCount;
+  uint56 public creatorCount;
+  // 5% of all created tokens go to original creator
+  uint56 public constant OWNER_FACTOR = 20;
+  address immutable originalCreator;
+
   uint public maxGasPrice = 200 * 10**9;
   uint public maxContribution = 1 ether;
-
-  // 5% of all created tokens go to original creator
-  uint public constant OWNER_FACTOR = 20;
-  address immutable originalCreator;
 
   constructor(address payable _originalCreator) {
     originalCreator = _originalCreator;
@@ -90,8 +90,8 @@ contract FilmAuction is Token {
     return rounds[rounds.length - 1];
   }
 
-  function createAuctionRound(uint minWei, uint maxWei, uint startTime, uint endTime) public {
-    require(creators[msg.sender], "You must be a creator");
+  function createAuctionRound(uint minWei, uint maxWei, uint128 startTime, uint128 endTime) public {
+    require(creators[msg.sender], "Must be creator");
     require(startTime > rounds[rounds.length - 1].endTime, "Auction overlap not allowed");
     require(endTime > startTime, "Invalid timing");
     require(endTime - startTime >= MIN_AUCTION_LENGTH, "Invalid auction length");
@@ -112,13 +112,17 @@ contract FilmAuction is Token {
   }
 
   function settleTokens() public {
-    uint lastSettled = settledIndexes[msg.sender];
+    settleTokens(msg.sender);
+  }
+
+  function settleTokens(address payable owner) public {
+    uint lastSettled = settledIndexes[owner];
     uint refundAmount = 0;
     uint tokenAmount = 0;
     uint latestSettledIndex = lastSettled;
     for (uint x = lastSettled + 1; x < rounds.length; x++) {
       if (!rounds[x].finished) break;
-      uint amount = contributionsByRound[x][msg.sender];
+      uint amount = contributionsByRound[x][owner];
       if (amount == 0) {
         latestSettledIndex = x;
         continue;
@@ -130,14 +134,15 @@ contract FilmAuction is Token {
       }
       latestSettledIndex = x;
     }
-    settledIndexes[msg.sender] = latestSettledIndex;
+    settledIndexes[owner] = latestSettledIndex;
     if (tokenAmount != 0) {
-      balances[msg.sender] += tokenAmount;
+      balances[owner] += tokenAmount;
       balances[address(0)] -= tokenAmount;
-      emit Transfer(address(0), msg.sender, tokenAmount);
+      postTransfer(address(0), owner);
+      emit Transfer(address(0), owner, tokenAmount);
     }
     if (refundAmount != 0) {
-      msg.sender.transfer(refundAmount);
+      owner.transfer(refundAmount);
     }
   }
 
@@ -177,6 +182,7 @@ contract FilmAuction is Token {
     _totalSupply += ownerIncrease + round.actualWei;
     balances[address(0)] += round.actualWei;
     balances[originalCreator] += ownerIncrease;
+    postTransfer(address(0), originalCreator);
     emit Transfer(address(0), originalCreator, ownerIncrease);
     emit RoundFinished(index, round.success);
   }

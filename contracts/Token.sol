@@ -39,7 +39,7 @@ contract Token is IERC20 {
     return true;
   }
 
-  function transfer(address to, uint value) public override returns (bool) {
+  function transfer(address to, uint value) public virtual override returns (bool) {
     require(balances[msg.sender] >= value, "Insufficient balance");
     balances[msg.sender] -= value;
     balances[to] += value;
@@ -47,7 +47,7 @@ contract Token is IERC20 {
     return true;
   }
 
-  function transferFrom(address from, address to, uint value) public override returns (bool) {
+  function transferFrom(address from, address to, uint value) public virtual override returns (bool) {
     require(approvals[from][msg.sender] >= value, "Insufficient approval");
     require(balances[from] >= value, "Insufficient balance");
     approvals[from][msg.sender] -= value;

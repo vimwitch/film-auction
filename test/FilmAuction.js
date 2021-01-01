@@ -43,7 +43,7 @@ contract('FilmAuction tests', async accounts => {
         )
         assert(false)
       } catch (err) {
-        assert.equal(err.reason, 'You must be a creator')
+        assert.equal(err.reason, 'Must be creator')
       }
     })
 
