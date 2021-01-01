@@ -8,7 +8,7 @@
     "compile": "truffle compile",
     "genkeys": "node scripts/generate_keys",
     "testchain": "sh scripts/test_chain.sh",
-    "coverage": "truffle run coverage",
+    "coverage": "truffle run coverage && lcov-badge-generator ./coverage/lcov.info -o ./coverage/badge.svg",
     "test": "truffle test"
   },
   "author": "Chance Hudson",
@@ -16,6 +16,7 @@
   "dependencies": {
     "debug": "^4.3.1",
     "ganache-time-traveler": "^1.0.15",
+    "lcov-badge-generator": "^1.0.5",
     "solidity-coverage": "^0.7.13",
     "truffle": "^5.1.59",
     "web3": "^1.3.1"
