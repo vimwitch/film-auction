@@ -7,11 +7,11 @@ const defaultGasPrice = '1000000000'
 
 const now = () => Math.floor(+new Date() / 1000)
 
-async function createRound(account, auctionMin = '1000', auctionMax = '100000') {
+async function createRound(account, startOffset = 0, auctionMin = '1000', auctionMax = '100000') {
   const contract = await auction.deployed()
   const MIN_AUCTION_LENGTH = +(await contract.MIN_AUCTION_LENGTH()).toString()
   const MIN_AUCTION_LEAD_TIME = +(await contract.MIN_AUCTION_LEAD_TIME()).toString()
-  const auctionStart = now() + MIN_AUCTION_LEAD_TIME + 30
+  const auctionStart = startOffset + now() + MIN_AUCTION_LEAD_TIME + 30
   const auctionEnd = auctionStart + MIN_AUCTION_LENGTH
   await contract.createAuctionRound(
     auctionMin,
@@ -566,6 +566,104 @@ contract('FilmAuction tests', async accounts => {
       }
       assert.equal(+startBalance.toString() + +contributionWei.toString(), +finalBalance.toString())
       assert.equal(+expectedSupply, +finalSupply.toString())
+    })
+  })
+
+  describe('settle tokens', () => {
+    it('should noop if nothing to settle', async () => {
+      const { roundIndex, minWei, auctionStart, auctionEnd } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionStart - now())
+      // contribute some
+      const contributionWei = (+minWei + 10).toString()
+      await contract.contribute(roundIndex, {
+        from: accounts[2],
+        value: contributionWei,
+      })
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+      const startBalance = await contract.balanceOf(accounts[2])
+      const { logs } = await contract.methods['settleTokens()']({
+        from: accounts[2],
+      })
+      const endBalance = await contract.balanceOf(accounts[2])
+      assert.equal(logs.length, 0)
+      assert.equal(startBalance.toString(), endBalance.toString())
+    })
+
+    it('should update token balance if round success', async () => {
+      const { roundIndex, minWei, auctionStart, auctionEnd } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionStart - now())
+      // contribute some
+      const contributionWei = (+minWei + 10).toString()
+      await contract.contribute(roundIndex, {
+        from: accounts[2],
+        value: contributionWei,
+      })
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+      const startBalance = await contract.balanceOf(accounts[2])
+      await contract.finishRound(roundIndex)
+      const zeroBalance = await contract.balanceOf('0x0000000000000000000000000000000000000000')
+      const { logs } = await contract.settleTokens(accounts[2], {
+        from: accounts[4]
+      })
+      assert.equal(logs.length, 1)
+      assert.equal(logs[0].event, 'Transfer')
+      assert.equal(logs[0].args.from, '0x0000000000000000000000000000000000000000')
+      assert.equal(logs[0].args.to, accounts[2])
+      assert.equal(logs[0].args.value.toString(), contributionWei)
+      const expectedBalance = +startBalance.toString() + +contributionWei
+      const endBalance = await contract.balanceOf(accounts[2])
+      const expectedZeroBalance = +zeroBalance.toString() - +contributionWei
+      const finalZeroBalance = await contract.balanceOf('0x0000000000000000000000000000000000000000')
+      assert.equal(expectedBalance, endBalance.toString())
+      assert.equal(expectedZeroBalance, finalZeroBalance.toString())
+      const { logs: _logs } = await contract.settleTokens(accounts[2])
+      assert.equal(_logs.length, 0)
+      const _endBalance = await contract.balanceOf(accounts[2])
+      assert.equal(endBalance.toString(), _endBalance.toString())
+    })
+
+    it('should refund wei for failed round', async () => {
+      let startOffset = 0
+      let newNow = now()
+      // run a round that the test contributor doesn't participate in
+      {
+        const { roundIndex, minWei, auctionStart, auctionEnd } = await createRound(accounts[0])
+        startOffset += 10 + +auctionStart - now()
+        await timeMachine.advanceTimeAndBlock(10 + +auctionStart - now())
+        newNow += 10 + +auctionStart - now()
+        // contribute some
+        const contributionWei = (+minWei - 10).toString()
+        await contract.contribute(roundIndex, {
+          from: accounts[5],
+          value: contributionWei,
+        })
+        startOffset += 10 + +auctionEnd - now()
+        newNow += 10 + +auctionEnd - now()
+        await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+        await contract.finishRound(roundIndex, {
+          from: accounts[4],
+        })
+      }
+      const { roundIndex, minWei, auctionStart, auctionEnd } = await createRound(accounts[0], startOffset)
+      await timeMachine.advanceTimeAndBlock(10 + +auctionStart - newNow)
+      // contribute some
+      const contributionWei = (+minWei - 10).toString()
+      await contract.contribute(roundIndex, {
+        from: accounts[2],
+        value: contributionWei,
+      })
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - newNow)
+      const startBalance = await web3.eth.getBalance(accounts[2])
+      await contract.finishRound(roundIndex, {
+        from: accounts[4],
+      })
+      const { logs } = await contract.settleTokens(accounts[2], {
+        from: accounts[4]
+      })
+      assert.equal(logs.length, 0)
+      const expectedBalance = new BN(startBalance).add(new BN(contributionWei)).toString()
+      const endBalance = await web3.eth.getBalance(accounts[2])
+      assert.equal(expectedBalance.toString(), endBalance.toString())
     })
   })
 })

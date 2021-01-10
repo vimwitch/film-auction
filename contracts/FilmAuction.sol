@@ -192,10 +192,6 @@ contract FilmAuction is DividendToken {
     emit RoundFinished(index, round.success);
   }
 
-  function max(uint a, uint b) internal pure returns (uint) {
-    return a > b ? a : b;
-  }
-
   function min(uint a, uint b) internal pure returns (uint) {
     return a < b ? a : b;
   }
