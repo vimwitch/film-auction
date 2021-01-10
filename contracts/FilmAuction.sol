@@ -38,7 +38,7 @@ contract FilmAuction is DividendToken {
   uint56 public creatorCount;
   // 5% of all created tokens go to original creator
   uint56 public constant OWNER_FACTOR = 20;
-  address immutable originalCreator;
+  address public immutable originalCreator;
 
   uint public maxGasPrice = 200 * 10**9;
   uint public maxContribution = 1 ether;
@@ -88,6 +88,10 @@ contract FilmAuction is DividendToken {
 
   function latestRound() public view returns (AuctionRound memory) {
     return rounds[rounds.length - 1];
+  }
+
+  function roundCount() public view returns (uint) {
+    return rounds.length;
   }
 
   function createAuctionRound(uint minWei, uint maxWei, uint128 startTime, uint128 endTime) public {
@@ -170,8 +174,9 @@ contract FilmAuction is DividendToken {
     require(index < rounds.length, "Invalid round index");
     AuctionRound storage round = rounds[index];
     require(block.timestamp > round.endTime || round.actualWei == round.maxWei, "Round has not finished");
-    require(!round.finished, "Round already settled");
+    require(!round.finished, "Round already finished");
     round.success = round.actualWei >= round.minWei;
+    round.finished = true;
     if (!round.success) {
       emit RoundFinished(index, round.success);
       return; // ether can be reclaimed

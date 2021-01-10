@@ -7,6 +7,30 @@ const defaultGasPrice = '1000000000'
 
 const now = () => Math.floor(+new Date() / 1000)
 
+async function createRound(account, auctionMin = '1000', auctionMax = '100000') {
+  const contract = await auction.deployed()
+  const MIN_AUCTION_LENGTH = +(await contract.MIN_AUCTION_LENGTH()).toString()
+  const MIN_AUCTION_LEAD_TIME = +(await contract.MIN_AUCTION_LEAD_TIME()).toString()
+  const auctionStart = now() + MIN_AUCTION_LEAD_TIME + 30
+  const auctionEnd = auctionStart + MIN_AUCTION_LENGTH
+  await contract.createAuctionRound(
+    auctionMin,
+    auctionMax,
+    auctionStart.toString(),
+    auctionEnd.toString(),
+    {
+      from: account,
+    },
+  )
+  return {
+    roundIndex: (+(await contract.roundCount()) - 1).toString(),
+    auctionStart,
+    auctionEnd,
+    minWei: auctionMin,
+    maxWei: auctionMax,
+  }
+}
+
 contract('FilmAuction tests', async accounts => {
 
   let snapshotId
@@ -446,5 +470,102 @@ contract('FilmAuction tests', async accounts => {
       assert.equal(endBalance.toString(), auctionLimit)
     })
 
+  })
+
+  describe('finish round', () => {
+    it('should fail on invalid index', async () => {
+      const { roundIndex, auctionEnd } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+      try {
+        await contract.finishRound(roundIndex + 1)
+        assert(false)
+      } catch (err) {
+        assert.equal(err.reason, 'Invalid round index')
+      }
+    })
+
+    it('should fail if before finish and maxWei not reached', async () => {
+      const { roundIndex, auctionStart } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionStart - now())
+      try {
+        await contract.finishRound(roundIndex)
+        assert(false)
+      } catch (err) {
+        assert.equal(err.reason, 'Round has not finished')
+      }
+    })
+
+    it('should fail if already finished', async () => {
+      const { roundIndex, auctionEnd } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+      await contract.finishRound(roundIndex)
+      try {
+        await contract.finishRound(roundIndex)
+        assert(false)
+      } catch (err) {
+        assert.equal(err.reason, 'Round already finished')
+      }
+    })
+
+    it('should not change balances if fail', async () => {
+      const { roundIndex, minWei, auctionStart, auctionEnd } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionStart - now())
+      // contribute some
+      await contract.contribute(roundIndex, {
+        from: accounts[2],
+        value: (+minWei - 10).toString(),
+      })
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+      const startBalance = await contract.totalBalance()
+      const startSupply = await contract.totalSupply()
+      const { logs } = await contract.finishRound(roundIndex)
+      assert.equal(logs.length, 1)
+      assert.equal(logs[0].event, 'RoundFinished')
+      assert.equal(logs[0].args.roundIndex.toString(), roundIndex)
+      assert.equal(logs[0].args.success, false)
+      const latestRound = await contract.latestRound()
+      assert.equal(latestRound.finished, true)
+      assert.equal(latestRound.success, false)
+      assert.equal(startBalance.toString(), (await contract.totalBalance()).toString())
+      assert.equal(startSupply.toString(), (await contract.totalSupply()).toString())
+    })
+
+    it('should update balances if sucess', async () => {
+      const { roundIndex, minWei, auctionStart, auctionEnd } = await createRound(accounts[0])
+      await timeMachine.advanceTimeAndBlock(10 + +auctionStart - now())
+      // contribute some
+      const contributionWei = (+minWei + 10).toString()
+      await contract.contribute(roundIndex, {
+        from: accounts[2],
+        value: contributionWei,
+      })
+      await timeMachine.advanceTimeAndBlock(10 + +auctionEnd - now())
+      const startBalance = await contract.totalBalance()
+      const startSupply = await contract.totalSupply()
+      const originalCreator = await contract.originalCreator()
+      const { logs } = await contract.finishRound(roundIndex)
+      const finalBalance = await contract.totalBalance()
+      const finalSupply = await contract.totalSupply()
+      const expectedOwnerDelta = Math.floor(+contributionWei / +OWNER_FACTOR)
+      const expectedDelta = +contributionWei + expectedOwnerDelta
+      const expectedSupply = +startSupply.toString() + expectedDelta
+      assert.equal(logs.length, 2)
+      for (const { event: _event, args } of logs) {
+        if (_event !== 'Transfer' && _event !== 'RoundFinished') {
+          assert(false)
+        }
+        if (_event === 'RoundFinished') {
+          assert.equal(args.roundIndex.toString(), roundIndex)
+          assert.equal(args.success, true)
+        }
+        if (_event === 'Transfer') {
+          assert.equal(args.from, '0x0000000000000000000000000000000000000000')
+          assert.equal(args.to, originalCreator)
+          assert.equal(args.value.toString(), expectedOwnerDelta.toString())
+        }
+      }
+      assert.equal(+startBalance.toString() + +contributionWei.toString(), +finalBalance.toString())
+      assert.equal(+expectedSupply, +finalSupply.toString())
+    })
   })
 })
