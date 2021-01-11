@@ -27,7 +27,7 @@ contract FilmAuction is DividendToken {
   AuctionRound[] rounds;
   mapping (uint => mapping (address => uint)) contributionsByRound;
   mapping (address => uint) settledIndexes;
-  mapping (address => bool) creators;
+  mapping (address => bool) public creators;
   mapping (address => uint) owners;
 
   uint public totalBalance = 0;

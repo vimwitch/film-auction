@@ -666,4 +666,129 @@ contract('FilmAuction tests', async accounts => {
       assert.equal(expectedBalance.toString(), endBalance.toString())
     })
   })
+
+  describe('creator management', () => {
+    it('should fail to add creator', async () => {
+      try {
+        await contract.addCreator(accounts[8], {
+          from: accounts[8],
+        })
+        assert(false)
+      } catch (err) {
+        assert(true)
+      }
+    })
+
+    it('should add creator', async () => {
+      const startCreatorCount = await contract.creatorCount()
+      assert.equal(await contract.creators(accounts[8]), false)
+      await contract.addCreator(accounts[8], {
+        from: accounts[0],
+      })
+      const finalCreatorCount = await contract.creatorCount()
+      assert.equal(finalCreatorCount.toString(), (+startCreatorCount + 1).toString())
+      const isCreator = await contract.creators(accounts[8])
+      assert(isCreator)
+    })
+
+    it('should fail to remove creator', async () => {
+      await contract.addCreator(accounts[1], {
+        from: accounts[0],
+      })
+      try {
+        await contract.removeCreator(accounts[1], {
+          from: accounts[8],
+        })
+        assert(false)
+      } catch (err) {
+        assert(true)
+      }
+    })
+
+    it('should remove creator', async () => {
+      await contract.addCreator(accounts[1], {
+        from: accounts[0],
+      })
+      const startCreatorCount = await contract.creatorCount()
+      assert.equal(await contract.creators(accounts[1]), true)
+      await contract.removeCreator(accounts[1], {
+        from: accounts[0],
+      })
+      const finalCreatorCount = await contract.creatorCount()
+      assert.equal(finalCreatorCount.toString(), (+startCreatorCount - 1).toString())
+      const isCreator = await contract.creators(accounts[1])
+      assert(!isCreator)
+    })
+  })
+
+  describe('finish auction', () => {
+    it('should not be finished', async () => {
+      const finished = await contract.finished()
+      assert.equal(finished, false)
+    })
+
+    it('should finish by removing final creator', async () => {
+      const finished = await contract.finished()
+      assert.equal(finished, false)
+      await contract.removeCreator(accounts[0], {
+        from: accounts[0],
+      })
+      const _finished = await contract.finished()
+      assert.equal(_finished, true)
+    })
+  })
+
+  describe('max gas price', () => {
+    it('should fail to update max gas price', async () => {
+      try {
+        await contract.setMaxGasPrice((100 * 10**9).toString(), {
+          from: accounts[9],
+        })
+        assert(false)
+      } catch (err) {
+        assert(true)
+      }
+    })
+
+    it('should update max gas price', async () => {
+      await contract.addCreator(accounts[9], {
+        from: accounts[0],
+      })
+      const newPrice = (4712 * 10**9).toString()
+      const { logs } = await contract.setMaxGasPrice(newPrice, {
+        from: accounts[9],
+      })
+      assert.equal(logs.length, 1)
+      assert.equal(logs[0].event, 'MaxGasPriceChanged')
+      assert.equal(logs[0].args.newMaxGasPrice.toString(), newPrice)
+      const maxGasPrice = await contract.maxGasPrice()
+      assert.equal(maxGasPrice, newPrice)
+    })
+  })
+
+  describe('max contribution change', () => {
+    it('should fail to update max contribution', async () => {
+      try {
+        await contract.setMaxContribution('10000000', {
+          from: accounts[9],
+        })
+        assert(false)
+      } catch (err) {
+        assert(true)
+      }
+    })
+
+    it('should update max contribution', async () => {
+      await contract.addCreator(accounts[9], {
+        from: accounts[0],
+      })
+      const newMax = '1248249258529482484288'
+      const { logs } = await contract.setMaxContribution(newMax, {
+        from: accounts[9],
+      })
+      assert.equal(logs.length, 1)
+      assert.equal(logs[0].event, 'MaxContributionChanged')
+      assert.equal(logs[0].args.newMaxContribution.toString(), newMax)
+    })
+  })
 })
