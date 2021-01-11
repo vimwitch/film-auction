@@ -10,9 +10,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Badge Purge
-          command: npx camo-purge --repository https://github.com/jchancehud/film-auction
-      - run:
           name: Install
           command: npm ci
       - run:
