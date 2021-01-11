@@ -3,8 +3,6 @@ const assert = require('assert')
 const timeMachine = require('ganache-time-traveler')
 const BN = require('bn.js')
 
-const defaultGasPrice = '1000000000'
-
 const now = () => Math.floor(+new Date() / 1000)
 
 async function createRound(account, startOffset = 0, auctionMin = '1000', auctionMax = '100000') {
@@ -129,7 +127,7 @@ contract('FilmAuction tests', async accounts => {
     })
 
     it('should fail for invalid lead time', async () => {
-      const auctionStart = now() + MIN_AUCTION_LEAD_TIME - 1
+      const auctionStart = now() + MIN_AUCTION_LEAD_TIME - 10
       const auctionEnd = auctionStart + MIN_AUCTION_LENGTH
       try {
         await contract.createAuctionRound(
@@ -268,7 +266,6 @@ contract('FilmAuction tests', async accounts => {
         await contract.contribute(5, {
           from: accounts[1],
           value: '100000',
-          gasPrice: defaultGasPrice,
         })
       } catch (err) {
         assert.equal(err.reason, 'Invalid round index')

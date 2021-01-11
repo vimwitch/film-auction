@@ -28,7 +28,6 @@ contract DividendToken is Token {
 
   receive() external payable {
     require(msg.value > 0);
-    require(address(this).balance != 0);
     payments.push(Payment({
       timestamp: uint128(block.timestamp),
       from: msg.sender,
@@ -56,7 +55,7 @@ contract DividendToken is Token {
     uint lastPaidIndex = lastPaidIndexes[owner];
     uint owedWei = 0;
     for (uint x = lastPaidIndex + 1; x < payments.length; x++) {
-      if (indexMarked[msg.sender][x]) {
+      if (indexMarked[owner][x]) {
         latestBalance = roundBalances[owner][x];
       }
       if (latestBalance == 0) continue;

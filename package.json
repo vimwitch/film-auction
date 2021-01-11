@@ -8,8 +8,8 @@
     "compile": "truffle compile",
     "genkeys": "node scripts/generate_keys",
     "testchain": "sh scripts/test_chain.sh",
-    "coverage": "truffle run coverage && lcov-badge-generator ./coverage/lcov.info -o ./coverage/badge.svg",
-    "test": "truffle test"
+    "coverage": "TEST_CONTRACT=true truffle run coverage && lcov-badge-generator ./coverage/lcov.info -o ./coverage/badge.svg",
+    "test": "TEST_CONTRACT=true truffle test"
   },
   "author": "Chance Hudson",
   "license": "GPL-3.0-or-later",
